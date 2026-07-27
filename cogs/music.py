@@ -41,6 +41,7 @@ YTDLP_OPTIONS = {
     "no_warnings": True,
     "default_search": "ytsearch",
     "source_address": "0.0.0.0",
+    "socket_timeout": 15,
 }
 
 FFMPEG_OPTIONS = {
