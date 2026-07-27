@@ -1,0 +1,36 @@
+# ============================================================
+#  Kutral Bot — .gitignore
+# ============================================================
+
+# Variables de entorno (NUNCA subir a repositorios públicos)
+.env
+
+# Base de datos local (se genera automáticamente al arrancar)
+data/kutral.db
+data/*.db
+
+# Caché de Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Entornos virtuales
+venv/
+.venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
