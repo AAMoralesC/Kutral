@@ -31,6 +31,7 @@ Notas de diseño:
 import os
 import textwrap
 import asyncio
+import json
 
 import discord
 from discord import app_commands
@@ -127,28 +128,144 @@ class AIChat(commands.Cog, name="IA Pública"):
             # Mantener system prompt en índice 0, y luego los últimos turnos
             self.history[user_id] = [history[0]] + history[-(MAX_HISTORY_TURNS * 2):]
 
-    async def _ask_groq(self, user_id: int, prompt: str) -> str:
+    async def _ask_groq(self, member: discord.Member, channel: discord.TextChannel, prompt: str) -> str:
         """
         Envía el prompt a Groq incluyendo el historial de conversación.
+        Soporta uso de herramientas (Tool Calling).
         """
-        # Preparar historial
+        user_id = member.id
         history = self._get_history(user_id)
         
-        # Copiar historial para enviarlo agregando la nueva pregunta
         messages = list(history)
+        
+        is_boss = (user_id == config.OWNER_ID)
+        boss_text = "Él es tu dueño y creador, llámale 'jefe' o 'amo'." if is_boss else f"Estás hablando con {member.display_name}."
+        dynamic_system = f"Contexto actual: {boss_text}. Tienes herramientas de música. Úsalas de forma autónoma si el usuario te pide reproducir, pausar, saltar o detener música. Al usar una herramienta, avisa al usuario que lo estás haciendo de forma entretenida y amigable."
+        messages.append({"role": "system", "content": dynamic_system})
         messages.append({"role": "user", "content": prompt})
 
-        # Llamar a la API de Groq
+        tools = [
+            {
+                "type": "function",
+                "function": {
+                    "name": "reproducir_musica",
+                    "description": "Reproduce o encola una canción de YouTube.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "query": {"type": "string", "description": "El nombre de la canción o artista a buscar."}
+                        },
+                        "required": ["query"]
+                    }
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "saltar_cancion",
+                    "description": "Salta la canción que está sonando actualmente."
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "pausar_musica",
+                    "description": "Pausa la música actual."
+                }
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "detener_musica",
+                    "description": "Detiene la música y limpia la cola."
+                }
+            }
+        ]
+
         chat_completion = await self.client.chat.completions.create(
             messages=messages,
             model=config.AI_MODEL,
             temperature=0.7,
             max_tokens=2048,
+            tools=tools,
+            tool_choice="auto"
         )
+        
+        response_message = chat_completion.choices[0].message
+        
+        if response_message.tool_calls:
+            messages.append(response_message)
+            music_cog = self.bot.get_cog("Musica")
+            
+            for tool_call in response_message.tool_calls:
+                func_name = tool_call.function.name
+                result_str = "Error: Herramienta no encontrada."
+                
+                if music_cog:
+                    try:
+                        queue = music_cog._get_queue(member.guild.id)
+                        queue.text_channel = channel
+                        
+                        if func_name == "reproducir_musica":
+                            args = json.loads(tool_call.function.arguments)
+                            query = args.get("query")
+                            joined = await music_cog._join_voice(member, queue)
+                            if not joined:
+                                result_str = "Error: El usuario no está en un canal de voz."
+                            else:
+                                tracks = await music_cog._resolve_query(query, member)
+                                if tracks:
+                                    for t in tracks:
+                                        queue.tracks.append(t)
+                                    if not queue.is_playing and not queue.is_paused:
+                                        music_cog._play_next(member.guild.id)
+                                    else:
+                                        await music_cog.update_player_message(member.guild.id)
+                                    result_str = f"Éxito: Se añadió '{tracks[0].title}' a la cola."
+                                else:
+                                    result_str = "Error: No se encontraron resultados."
+                                    
+                        elif func_name == "saltar_cancion":
+                            if queue.is_playing or queue.is_paused:
+                                queue.voice_client.stop()
+                                result_str = "Éxito: Canción saltada."
+                            else:
+                                result_str = "Error: No hay música sonando."
+                                
+                        elif func_name == "pausar_musica":
+                            if queue.is_playing:
+                                queue.voice_client.pause()
+                                result_str = "Éxito: Música pausada."
+                            else:
+                                result_str = "Error: No hay música reproduciéndose."
+                                
+                        elif func_name == "detener_musica":
+                            queue.clear()
+                            if queue.is_playing or queue.is_paused:
+                                queue.voice_client.stop()
+                            await music_cog.update_player_message(member.guild.id)
+                            result_str = "Éxito: Música detenida."
+                            
+                    except Exception as e:
+                        result_str = f"Error interno: {e}"
+                
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.id,
+                    "name": func_name,
+                    "content": result_str
+                })
+                
+            chat_completion = await self.client.chat.completions.create(
+                messages=messages,
+                model=config.AI_MODEL,
+                temperature=0.7,
+                max_tokens=2048,
+            )
+            answer = chat_completion.choices[0].message.content
+        else:
+            answer = response_message.content
 
-        answer = chat_completion.choices[0].message.content
-
-        # Guardar en el historial real para la próxima vez
         self._add_to_history(user_id, "user", prompt)
         self._add_to_history(user_id, "assistant", answer)
 
@@ -180,7 +297,7 @@ class AIChat(commands.Cog, name="IA Pública"):
         await interaction.response.defer()
 
         try:
-            answer = await self._ask_groq(interaction.user.id, prompt)
+            answer = await self._ask_groq(interaction.user, interaction.channel, prompt)
         except Exception as e:
             await interaction.followup.send(
                 embed=error_embed("Error de la IA", f"No pude procesar tu solicitud: `{e}`")
@@ -232,7 +349,7 @@ class AIChat(commands.Cog, name="IA Pública"):
 
         async with message.channel.typing():
             try:
-                answer = await self._ask_groq(message.author.id, prompt)
+                answer = await self._ask_groq(message.author, message.channel, prompt)
                 await message.reply(self._truncate(answer, 1900))
             except Exception as e:
                 await message.reply(f"❌ Error al consultar la IA: `{e}`")

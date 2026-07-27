@@ -224,17 +224,20 @@ class Music(commands.Cog, name="Musica"):
         except Exception:
             pass
 
-    async def _join_voice(self, interaction: discord.Interaction, queue: MusicQueue) -> bool:
-        if not interaction.user.voice or not interaction.user.voice.channel:
+    async def _join_voice(self, user_or_interaction, queue: MusicQueue) -> bool:
+        member = getattr(user_or_interaction, "user", user_or_interaction)
+        guild = getattr(user_or_interaction, "guild", member.guild)
+        
+        if not member.voice or not member.voice.channel:
             return False
             
-        channel = interaction.user.voice.channel
-
-        if queue.voice_client is None or not queue.voice_client.is_connected():
+        channel = member.voice.channel
+        
+        if not queue.voice_client:
             try:
                 queue.voice_client = await channel.connect(timeout=10.0, self_deaf=True)
             except discord.ClientException:
-                queue.voice_client = interaction.guild.voice_client
+                queue.voice_client = guild.voice_client
             except asyncio.TimeoutError:
                 return False
             except Exception:
