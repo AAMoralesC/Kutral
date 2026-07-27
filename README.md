@@ -4,6 +4,12 @@
   Un bot de Discord multifuncional construido con Python. Pensado para ser rápido, modular y fácil de escalar. Combina inteligencia artificial, reproducción de música y herramientas de administración en un solo lugar.
 </p>
 
+<p align="center">
+  <a href="https://discord.com/oauth2/authorize?client_id=1531107387342327838&permissions=3599424&integration_type=0&scope=bot+applications.commands">
+    <img src="https://img.shields.io/badge/Añadir_a_Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Invitar a Kutral">
+  </a>
+</p>
+
 ## ✨ Características
 
 - **Asistente de IA Integrado:** Conectado a la API de Groq (Llama 3) para mantener conversaciones fluidas, rápidas y naturales directamente en tu servidor.
