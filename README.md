@@ -1,4 +1,11 @@
-<h1 align="center">Kutral Bot 🔥</h1>
+<p align="center">
+  <img src="assets/kutral_cartel.png" alt="Kutral Banner" width="100%">
+</p>
+
+<h1 align="center">
+  <img src="assets/kutral_icon.png" width="100" alt="Kutral Logo"><br>
+  Kutral Bot 🔥
+</h1>
 
 <p align="center">
   Un bot de Discord multifuncional construido con Python. Pensado para ser rápido, modular y fácil de escalar. Combina inteligencia artificial, reproducción de música y herramientas de administración en un solo lugar.
@@ -18,6 +25,16 @@
 - **Moderación Limpia:** Comandos nativos (slash commands) para banear, expulsar, limpiar mensajes masivamente y aplicar *timeouts* nativos de Discord, con registro automático en base de datos.
 - **Asistente Personal (Owner Only):** Comandos privados de notas, tareas y recordatorios que solo el dueño del bot puede utilizar.
 - **Arquitectura Modular:** Basado en Cogs de `discord.py` para mantener el código ordenado y escalable.
+
+## 🖼️ Vistazo Rápido
+
+<p align="center">
+  <img src="assets/feature_basic_greeting.png" width="45%" alt="Saludo de la IA">
+  <img src="assets/feature_rank_stats.png" width="45%" alt="Sistema de Niveles">
+  <br>
+  <img src="assets/feature_reminder_create.png" width="45%" alt="Creación de Recordatorios">
+  <img src="assets/feature_reminder_alert.png" width="45%" alt="Alerta de Recordatorio">
+</p>
 
 ## 🛠️ Stack Tecnológico
 
