@@ -13,7 +13,8 @@
 ## ✨ Características
 
 - **Asistente de IA Integrado:** Conectado a la API de Groq (Llama 3) para mantener conversaciones fluidas, rápidas y naturales directamente en tu servidor.
-- **Sistema de Música Avanzado:** Reproduce audio desde YouTube y Spotify. Soporte nativo para el protocolo DAVE de Discord (E2EE), controles de cola, pausa, salto y volumen.
+- **Sistema de Música Avanzado:** Reproduce audio desde YouTube de manera nativa (Soporte E2EE/DAVE de Discord).
+- **Sistema de Niveles (Experiencia):** Recompensa a tus usuarios por estar activos. Incluye enfriamiento (cooldown) anti-spam, comando `/rank` con barra de progreso visual y `/leaderboard` competitivo.
 - **Moderación Limpia:** Comandos nativos (slash commands) para banear, expulsar, limpiar mensajes masivamente y aplicar *timeouts* nativos de Discord, con registro automático en base de datos.
 - **Asistente Personal (Owner Only):** Comandos privados de notas, tareas y recordatorios que solo el dueño del bot puede utilizar.
 - **Arquitectura Modular:** Basado en Cogs de `discord.py` para mantener el código ordenado y escalable.
@@ -53,10 +54,6 @@ Antes de instalar Kutral, asegúrate de tener instalado en tu sistema:
    DISCORD_TOKEN=tu_token_de_discord_aqui
    OWNER_ID=tu_id_de_usuario_en_discord
    GROQ_API_KEY=tu_api_key_de_groq
-
-   # Spotify (Opcional, para lectura de metadatos)
-   SPOTIFY_CLIENT_ID=tu_client_id
-   SPOTIFY_CLIENT_SECRET=tu_client_secret
    ```
 
 ## 💻 Uso
@@ -75,6 +72,7 @@ Al arrancar, la consola te mostrará el estado de carga de cada módulo (Cog) y 
 KutralDs/
 ├── cogs/                 # Módulos independientes del bot
 │   ├── ai_chat.py        # Lógica de Groq y Llama 3
+│   ├── levels.py         # Sistema de XP y Leaderboards
 │   ├── moderation.py     # Comandos de administración
 │   ├── music.py          # Lógica de yt-dlp y audio
 │   └── owner.py          # Herramientas privadas del creador
