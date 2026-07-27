@@ -140,7 +140,7 @@ class AIChat(commands.Cog, name="IA Pública"):
         
         is_boss = (user_id == config.OWNER_ID)
         boss_text = "Él es tu dueño y creador, llámale 'jefe' o 'amo'." if is_boss else f"Estás hablando con {member.display_name}."
-        dynamic_system = f"Contexto actual: {boss_text}. Tienes herramientas de música. Úsalas de forma autónoma si el usuario te pide reproducir, pausar, saltar o detener música. Al usar una herramienta, avisa al usuario que lo estás haciendo de forma entretenida y amigable."
+        dynamic_system = f"Contexto actual: {boss_text}. Tienes herramientas de música. Úsalas de forma autónoma SOLO si el usuario te pide explícitamente reproducir, pausar, saltar o detener música. Si te pide algo distinto (como recordar algo o charlar), NO uses las herramientas, solo responde."
         messages.append({"role": "system", "content": dynamic_system})
         messages.append({"role": "user", "content": prompt})
 
@@ -209,6 +209,18 @@ class AIChat(commands.Cog, name="IA Pública"):
                         if func_name == "reproducir_musica":
                             args = json.loads(tool_call.function.arguments)
                             query = args.get("query")
+                            
+                            # Optimización extrema: usar ytmusicapi para convertir el query a URL al instante
+                            if hasattr(music_cog, 'ytm') and music_cog.ytm and not query.startswith("http"):
+                                try:
+                                    search_results = await self.bot.loop.run_in_executor(None, lambda: music_cog.ytm.search(query, filter="songs", limit=1))
+                                    if search_results:
+                                        video_id = search_results[0].get("videoId")
+                                        if video_id:
+                                            query = f"https://www.youtube.com/watch?v={video_id}"
+                                except Exception:
+                                    pass
+
                             joined = await music_cog._join_voice(member, queue)
                             if not joined:
                                 result_str = "Error: El usuario no está en un canal de voz."
