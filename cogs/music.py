@@ -90,6 +90,61 @@ class MusicQueue:
         self.tracks.clear()
 
 
+class MusicControlView(discord.ui.View):
+    def __init__(self, cog, guild_id: int):
+        super().__init__(timeout=None)
+        self.cog = cog
+        self.guild_id = guild_id
+
+    @discord.ui.button(emoji="⏯️", style=discord.ButtonStyle.primary, custom_id="music_pause")
+    async def toggle_pause(self, interaction: discord.Interaction, button: discord.ui.Button):
+        queue = self.cog._get_queue(self.guild_id)
+        if queue.voice_client:
+            if queue.is_playing:
+                queue.voice_client.pause()
+                await interaction.response.send_message("⏸️ Música pausada.", ephemeral=True)
+            elif queue.is_paused:
+                queue.voice_client.resume()
+                await interaction.response.send_message("▶️ Música reanudada.", ephemeral=True)
+            else:
+                await interaction.response.send_message("No hay música activa.", ephemeral=True)
+        else:
+            await interaction.response.send_message("El bot no está en un canal.", ephemeral=True)
+
+    @discord.ui.button(emoji="⏭️", style=discord.ButtonStyle.secondary, custom_id="music_skip")
+    async def skip(self, interaction: discord.Interaction, button: discord.ui.Button):
+        queue = self.cog._get_queue(self.guild_id)
+        if queue.is_playing or queue.is_paused:
+            queue.voice_client.stop()
+            await interaction.response.send_message("⏭️ Canción saltada.", ephemeral=True)
+        else:
+            await interaction.response.send_message("No hay música activa para saltar.", ephemeral=True)
+
+    @discord.ui.button(emoji="⏹️", style=discord.ButtonStyle.danger, custom_id="music_stop")
+    async def stop(self, interaction: discord.Interaction, button: discord.ui.Button):
+        queue = self.cog._get_queue(self.guild_id)
+        queue.clear()
+        if queue.voice_client:
+            queue.voice_client.stop()
+            await queue.voice_client.disconnect()
+            queue.voice_client = None
+        await interaction.response.send_message("⏹️ Reproductor detenido.", ephemeral=True)
+
+    @discord.ui.button(emoji="📜", style=discord.ButtonStyle.secondary, custom_id="music_queue")
+    async def show_queue(self, interaction: discord.Interaction, button: discord.ui.Button):
+        queue = self.cog._get_queue(self.guild_id)
+        if not queue.tracks:
+            await interaction.response.send_message("La cola está vacía.", ephemeral=True)
+            return
+        
+        q_list = "\n".join(f"{i+1}. {t.title}" for i, t in enumerate(list(queue.tracks)[:10]))
+        if len(queue.tracks) > 10:
+            q_list += f"\n...y {len(queue.tracks) - 10} más."
+        
+        embed = discord.Embed(title="Cola de Reproducción", description=q_list, color=discord.Color.blue())
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
 # ---------------------------------------------------------------------------
 # Cog Principal
 # ---------------------------------------------------------------------------
@@ -270,13 +325,16 @@ class Music(commands.Cog, name="Musica"):
             self._play_next(interaction.guild_id)
             
         if len(tracks) == 1:
-            await interaction.followup.send(
-                embed=music_embed("Agregado a la cola", f"[{tracks[0].title}]({tracks[0].webpage_url})")
-            )
+            embed = music_embed("🎶 Agregado a la cola", f"[{tracks[0].title}]({tracks[0].webpage_url})")
+            if tracks[0].thumbnail:
+                embed.set_thumbnail(url=tracks[0].thumbnail)
+            
+            view = MusicControlView(self, interaction.guild_id)
+            await interaction.followup.send(embed=embed, view=view)
         else:
-            await interaction.followup.send(
-                embed=music_embed("Playlist Agregada", f"{len(tracks)} canciones agregadas a la cola.")
-            )
+            embed = music_embed("🎵 Playlist Agregada", f"Se agregaron **{len(tracks)}** canciones a la cola.")
+            view = MusicControlView(self, interaction.guild_id)
+            await interaction.followup.send(embed=embed, view=view)
 
     @app_commands.command(name="skip", description="Salta la cancion actual")
     @guild_only()
