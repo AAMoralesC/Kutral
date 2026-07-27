@@ -560,11 +560,11 @@ class AIChat(commands.Cog, name="IA Pública"):
         if not channel:
             return
             
-        prompt = f"Acabas de ser invitado y unido al servidor llamado '{guild.name}'. Preséntate ante todos de forma muy épica, amigable y usando modismos chilenos. Di tu nombre (Kutral) y menciona que estás aquí para poner música, moderar y ayudar en lo que sea."
+        prompt = f"Acabas de ser invitado y unido al servidor llamado '{guild.name}'. Saluda en UNA SOLA oración corta, amigable y usando modismos chilenos. Solo di hola y que estás listo para ayudar."
         
         try:
             messages = [
-                {"role": "system", "content": "Eres Kutral, la IA del servidor. Responde de forma chilena, épica y con buena onda."},
+                {"role": "system", "content": "Eres Kutral, la IA del servidor. Responde de forma chilena, épica y en una sola oración muy breve."},
                 {"role": "user", "content": prompt}
             ]
             
@@ -572,10 +572,23 @@ class AIChat(commands.Cog, name="IA Pública"):
                 messages=messages,
                 model=config.AI_MODEL,
                 temperature=0.8,
-                max_tokens=250,
+                max_tokens=80,
             )
             answer = chat_completion.choices[0].message.content
-            await channel.send(answer)
+            
+            embed = discord.Embed(
+                title="🔥 Kutral está en la casa",
+                description="Aquí tienes un resumen rápido de lo que puedo hacer por ustedes:",
+                color=config.COLOR_PRIMARY
+            )
+            embed.add_field(name="🎵 Música", value="Usa `/play` para escuchar canciones desde YouTube sin lag.", inline=False)
+            embed.add_field(name="🏆 Niveles", value="Gana XP chateando. Revisa tu nivel con `/rank` y `/leaderboard`.", inline=False)
+            embed.add_field(name="🛡️ Moderación", value="Comandos como `/ban`, `/kick` y `/mute` para mantener el orden.", inline=False)
+            embed.add_field(name="🤖 Inteligencia Artificial", value="**¡Etiquétame!** Escribe `@Kutral` seguido de cualquier pregunta o pídeme directamente que ponga una canción, salude a alguien o modere el chat.", inline=False)
+            if self.bot.user.display_avatar:
+                embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+                
+            await channel.send(content=answer, embed=embed)
         except Exception as e:
             print(f"Error al presentarse en nuevo servidor: {e}")
 
