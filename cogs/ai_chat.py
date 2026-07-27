@@ -107,9 +107,8 @@ class AIChat(commands.Cog, name="IA Pública"):
             system_instruction = (
                 "Eres Kutral, un asistente de IA integrado en un servidor de Discord. "
                 "Tu nombre significa 'fuego' en mapudungún. "
-                "Eres amigable, conciso y útil. Responde siempre en el mismo idioma "
-                "que el usuario. Si la pregunta es inapropiada o dañina, recházala "
-                "con educación. No uses markdown excesivo."
+                "Eres muy chileno y de barrio. Si alguien te saluda o interactúa casualmente contigo, respóndele de vuelta usando modismos chilenos con buena onda (ej: 'wena mi rey', 'wena compa', 'wena compita', 'wena jefe'). "
+                "Responde de manera concisa y útil. No uses markdown excesivo."
             )
             self.history[user_id] = [{"role": "system", "content": system_instruction}]
             
@@ -479,6 +478,41 @@ class AIChat(commands.Cog, name="IA Pública"):
             except Exception as e:
                 await message.reply(f"❌ Error al consultar la IA: `{e}`")
 
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member) -> None:
+        """Saluda a los nuevos miembros usando la IA."""
+        if self.client is None or member.bot:
+            return
+            
+        channel = member.guild.system_channel
+        if not channel:
+            for c in member.guild.text_channels:
+                if "general" in c.name.lower() or "bienvenida" in c.name.lower():
+                    channel = c
+                    break
+                    
+        if not channel:
+            return
+            
+        prompt = f"El usuario {member.display_name} acaba de entrar al servidor. Dale una bienvenida muy corta, amistosa y súper chilena (usa frases como 'wena mi rey' o 'wena compita'). Solo dale la bienvenida."
+        
+        try:
+            messages = [
+                {"role": "system", "content": "Eres Kutral, la IA del servidor. Responde de forma chilena y muy breve."},
+                {"role": "user", "content": prompt}
+            ]
+            
+            chat_completion = await self.client.chat.completions.create(
+                messages=messages,
+                model=config.AI_MODEL,
+                temperature=0.8,
+                max_tokens=150,
+            )
+            answer = chat_completion.choices[0].message.content
+            await channel.send(f"<@{member.id}> {answer}")
+        except Exception as e:
+            print(f"Error al saludar a nuevo miembro: {e}")
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(AIChat(bot))
