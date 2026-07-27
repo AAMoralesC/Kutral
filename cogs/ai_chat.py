@@ -541,5 +541,43 @@ class AIChat(commands.Cog, name="IA Pública"):
         except Exception as e:
             print(f"Error al saludar a nuevo miembro: {e}")
 
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        """Saluda a todo el servidor cuando el bot es invitado por primera vez."""
+        if self.client is None:
+            return
+            
+        channel = guild.system_channel
+        if not channel:
+            for c in guild.text_channels:
+                if "general" in c.name.lower() or "chat" in c.name.lower():
+                    channel = c
+                    break
+                    
+        if not channel and guild.text_channels:
+            channel = guild.text_channels[0]
+            
+        if not channel:
+            return
+            
+        prompt = f"Acabas de ser invitado y unido al servidor llamado '{guild.name}'. Preséntate ante todos de forma muy épica, amigable y usando modismos chilenos. Di tu nombre (Kutral) y menciona que estás aquí para poner música, moderar y ayudar en lo que sea."
+        
+        try:
+            messages = [
+                {"role": "system", "content": "Eres Kutral, la IA del servidor. Responde de forma chilena, épica y con buena onda."},
+                {"role": "user", "content": prompt}
+            ]
+            
+            chat_completion = await self.client.chat.completions.create(
+                messages=messages,
+                model=config.AI_MODEL,
+                temperature=0.8,
+                max_tokens=250,
+            )
+            answer = chat_completion.choices[0].message.content
+            await channel.send(answer)
+        except Exception as e:
+            print(f"Error al presentarse en nuevo servidor: {e}")
+
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(AIChat(bot))
