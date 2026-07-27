@@ -7,6 +7,8 @@ Gestiona la reproduccion de audio en canales de voz de Discord.
 import os
 import shutil
 import asyncio
+import aiohttp
+import urllib.parse
 from collections import deque
 
 import discord
@@ -296,8 +298,26 @@ class Music(commands.Cog, name="Musica"):
     # Slash Commands
     # -----------------------------------------------------------------------
 
+    async def play_autocomplete(self, interaction: discord.Interaction, current: str) -> list[app_commands.Choice[str]]:
+        if not current:
+            return []
+            
+        url = f"http://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q={urllib.parse.quote(current)}"
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=2.0) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        suggestions = data[1][:25] # Discord limita a 25
+                        return [app_commands.Choice(name=s, value=s) for s in suggestions]
+        except Exception:
+            pass
+            
+        return [app_commands.Choice(name=current, value=current)]
+
     @app_commands.command(name="play", description="Reproduce o encola musica de YouTube o Spotify")
     @app_commands.describe(query="URL de YouTube, Spotify o texto")
+    @app_commands.autocomplete(query=play_autocomplete)
     @guild_only()
     async def play(self, interaction: discord.Interaction, query: str) -> None:
         await interaction.response.defer()
