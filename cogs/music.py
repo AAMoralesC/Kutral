@@ -77,6 +77,8 @@ class MusicQueue:
         self.tracks: deque[Track] = deque(maxlen=config.MUSIC_QUEUE_MAX_SIZE)
         self.current: Track | None = None
         self.voice_client: discord.VoiceClient | None = None
+        self.text_channel = None
+        self.player_message: discord.Message | None = None
         self.volume: float = config.MUSIC_DEFAULT_VOLUME / 100
         self.loop: bool = False
 
@@ -180,6 +182,44 @@ class Music(commands.Cog, name="Musica"):
             self.queues[guild_id] = MusicQueue(guild_id)
         return self.queues[guild_id]
 
+    async def update_player_message(self, guild_id: int):
+        queue = self._get_queue(guild_id)
+        if not queue.text_channel:
+            return
+            
+        if not queue.current:
+            embed = discord.Embed(
+                title="⏹️ Reproductor Detenido", 
+                description="La cola está vacía.", 
+                color=discord.Color.red()
+            )
+            if queue.player_message:
+                try:
+                    await queue.player_message.edit(embed=embed, view=None)
+                except Exception:
+                    pass
+            return
+            
+        embed = music_embed("🎶 Reproduciendo Ahora", f"[{queue.current.title}]({queue.current.webpage_url})")
+        if queue.current.thumbnail:
+            embed.set_thumbnail(url=queue.current.thumbnail)
+            
+        if queue.tracks:
+            q_list = "\n".join(f"{i+1}. {t.title}" for i, t in enumerate(list(queue.tracks)[:5]))
+            if len(queue.tracks) > 5:
+                q_list += f"\n*...y {len(queue.tracks) - 5} más*"
+            embed.add_field(name="Siguientes en cola", value=q_list, inline=False)
+            
+        view = MusicControlView(self, guild_id)
+        
+        try:
+            if queue.player_message:
+                await queue.player_message.edit(embed=embed, view=view)
+            else:
+                queue.player_message = await queue.text_channel.send(embed=embed, view=view)
+        except Exception:
+            queue.player_message = await queue.text_channel.send(embed=embed, view=view)
+
     async def _join_voice(self, interaction: discord.Interaction, queue: MusicQueue) -> bool:
         if not interaction.user.voice or not interaction.user.voice.channel:
             return False
@@ -273,6 +313,7 @@ class Music(commands.Cog, name="Musica"):
             
         if not queue.tracks:
             queue.current = None
+            asyncio.run_coroutine_threadsafe(self.update_player_message(guild_id), self.bot.loop)
             asyncio.run_coroutine_threadsafe(self._disconnect_idle(guild_id), self.bot.loop)
             return
             
@@ -290,6 +331,7 @@ class Music(commands.Cog, name="Musica"):
                 source, 
                 after=lambda e: self._play_next(guild_id)
             )
+            asyncio.run_coroutine_threadsafe(self.update_player_message(guild_id), self.bot.loop)
         except Exception as e:
             print(f"[Music] Error al reproducir: {e}")
             self._play_next(guild_id)
@@ -342,6 +384,7 @@ class Music(commands.Cog, name="Musica"):
         await interaction.response.defer()
         
         queue = self._get_queue(interaction.guild_id)
+        queue.text_channel = interaction.channel
         
         joined = await self._join_voice(interaction, queue)
         if not joined:
@@ -362,18 +405,16 @@ class Music(commands.Cog, name="Musica"):
             
         if not queue.is_playing and not queue.is_paused:
             self._play_next(interaction.guild_id)
-            
-        if len(tracks) == 1:
-            embed = music_embed("🎶 Agregado a la cola", f"[{tracks[0].title}]({tracks[0].webpage_url})")
-            if tracks[0].thumbnail:
-                embed.set_thumbnail(url=tracks[0].thumbnail)
-            
-            view = MusicControlView(self, interaction.guild_id)
-            await interaction.followup.send(embed=embed, view=view)
+            if len(tracks) == 1:
+                await interaction.followup.send(f"✅ **{tracks[0].title}** añadido.", ephemeral=True)
+            else:
+                await interaction.followup.send(f"✅ Playlist de **{len(tracks)}** canciones añadida.", ephemeral=True)
         else:
-            embed = music_embed("🎵 Playlist Agregada", f"Se agregaron **{len(tracks)}** canciones a la cola.")
-            view = MusicControlView(self, interaction.guild_id)
-            await interaction.followup.send(embed=embed, view=view)
+            if len(tracks) == 1:
+                await interaction.followup.send(f"✅ **{tracks[0].title}** añadido a la cola.", ephemeral=True)
+            else:
+                await interaction.followup.send(f"✅ Playlist de **{len(tracks)}** canciones añadida a la cola.", ephemeral=True)
+            await self.update_player_message(interaction.guild_id)
 
     @app_commands.command(name="skip", description="Salta la cancion actual")
     @guild_only()
