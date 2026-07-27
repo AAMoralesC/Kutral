@@ -39,7 +39,8 @@ YTDLP_OPTIONS = {
     "noplaylist": True,
     "quiet": True,
     "no_warnings": True,
-    "default_search": "ytsearch",
+    "default_search": "ytsearch5",
+    "ignoreerrors": True,
     "source_address": "0.0.0.0",
     "socket_timeout": 15,
 }
