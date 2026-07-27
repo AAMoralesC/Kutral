@@ -6,4 +6,5 @@ google-genai==0.3.0
 groq==0.4.2
 yt-dlp
 spotipy
+ytmusicapi
 PyNaCl

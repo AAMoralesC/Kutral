@@ -168,6 +168,13 @@ class Music(commands.Cog, name="Musica"):
             except Exception as e:
                 print(f"[Music] Error iniciando Spotify: {e}")
 
+        # YTMusic Init
+        try:
+            import ytmusicapi
+            self.ytm = ytmusicapi.YTMusic()
+        except ImportError:
+            self.ytm = None
+
     def _get_queue(self, guild_id: int) -> MusicQueue:
         if guild_id not in self.queues:
             self.queues[guild_id] = MusicQueue(guild_id)
@@ -302,18 +309,30 @@ class Music(commands.Cog, name="Musica"):
         if not current:
             return []
             
-        url = f"http://suggestqueries.google.com/complete/search?client=firefox&ds=yt&q={urllib.parse.quote(current)}"
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=2.0) as resp:
-                    if resp.status == 200:
-                        data = await resp.json()
-                        suggestions = data[1][:25] # Discord limita a 25
-                        return [app_commands.Choice(name=s, value=s) for s in suggestions]
-        except Exception:
-            pass
+        if hasattr(self, 'ytm') and self.ytm is not None:
+            try:
+                # ytmusicapi es síncrono, se ejecuta en executor para no bloquear el bot
+                results = await self.bot.loop.run_in_executor(
+                    None, lambda: self.ytm.search(current, filter="songs", limit=15)
+                )
+                choices = []
+                seen = set()
+                for item in results:
+                    title = item.get("title", "")
+                    artists_list = item.get("artists", [])
+                    artists = ", ".join([a.get("name", "") for a in artists_list if isinstance(a, dict)])
+                    name = f"{title} - {artists}" if artists else title
+                    if name not in seen and len(name) > 3:
+                        seen.add(name)
+                        choices.append(app_commands.Choice(name=name[:100], value=name[:100]))
+                
+                if choices:
+                    return choices[:25]
+            except Exception:
+                pass
             
-        return [app_commands.Choice(name=current, value=current)]
+        return [app_commands.Choice(name=current[:100], value=current[:100])]
+
 
     @app_commands.command(name="play", description="Reproduce o encola musica de YouTube o Spotify")
     @app_commands.describe(query="URL de YouTube, Spotify o texto")
