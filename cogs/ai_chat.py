@@ -163,7 +163,7 @@ class AIChat(commands.Cog, name="IA Pública"):
         dynamic_system = f"Contexto actual: {boss_text}. Tienes herramientas de música. Úsalas de forma autónoma SOLO si el usuario te pide explícitamente reproducir, pausar, saltar o detener música. Si te pide algo distinto (como recordar algo o charlar), NO uses las herramientas, solo responde."
         
         if is_boss:
-            dynamic_system += " También tienes herramientas de moderación (banear, expulsar, silenciar) que debes usar si te ordeno disciplinar a alguien."
+            dynamic_system += " También tienes herramientas de moderación (banear, expulsar, silenciar). Además, si te pido saludar a alguien por su nombre, puedes usar la herramienta obtener_mencion para conseguir su ID y etiquetarlo en tu mensaje. Si te pido saludar a todos, escribe literalmente @everyone en tu respuesta."
             
         messages.append({"role": "system", "content": dynamic_system})
         messages.append({"role": "user", "content": prompt})
@@ -251,6 +251,20 @@ class AIChat(commands.Cog, name="IA Pública"):
                                 "razon": {"type": "string", "description": "Razón del silencio."}
                             },
                             "required": ["query", "minutos", "razon"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "obtener_mencion",
+                        "description": "Busca a un usuario por su nombre y devuelve su mención (<@ID>) para que puedas etiquetarlo.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "nombre": {"type": "string", "description": "Nombre del usuario a buscar."}
+                            },
+                            "required": ["nombre"]
                         }
                     }
                 }
@@ -371,6 +385,15 @@ class AIChat(commands.Cog, name="IA Pública"):
                                                 await target.timeout(timedelta(minutes=min), reason=razon)
                                                 result_str = f"Éxito: {target.display_name} silenciado {min} min."
                                                 
+                        elif func_name == "obtener_mencion":
+                            args = json.loads(tool_call.function.arguments)
+                            nombre = args.get("nombre", "")
+                            target = self._resolve_member_string(member.guild, nombre)
+                            if target:
+                                result_str = f"Mención encontrada: {target.mention}"
+                            else:
+                                result_str = f"No se encontró a nadie llamado {nombre}."
+                                                
                     except Exception as e:
                         result_str = f"Error interno: {e}"
                 
@@ -475,7 +498,10 @@ class AIChat(commands.Cog, name="IA Pública"):
         async with message.channel.typing():
             try:
                 answer = await self._ask_groq(message.author, message.channel, prompt)
-                await message.reply(self._truncate(answer, 1900))
+                await message.reply(
+                    self._truncate(answer, 1900), 
+                    allowed_mentions=discord.AllowedMentions(everyone=True, users=True, roles=True)
+                )
             except Exception as e:
                 await message.reply(f"❌ Error al consultar la IA: `{e}`")
 
