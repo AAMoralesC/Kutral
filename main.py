@@ -43,6 +43,7 @@ COGS: list[str] = [
     "cogs.organization",
     "cogs.ai_chat",
     "cogs.owner",
+    "cogs.levels",
 ]
 
 

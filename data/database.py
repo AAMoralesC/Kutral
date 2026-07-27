@@ -86,6 +86,18 @@ async def init_db() -> None:
             )
         """)
 
+        # Sistema de Niveles (XP)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS levels (
+                guild_id        INTEGER NOT NULL,
+                user_id         INTEGER NOT NULL,
+                xp              INTEGER NOT NULL DEFAULT 0,
+                level           INTEGER NOT NULL DEFAULT 0,
+                last_message_at TEXT    NOT NULL,
+                PRIMARY KEY (guild_id, user_id)
+            )
+        """)
+
         await db.commit()
 
     print("  ✅ Base de datos inicializada correctamente.")
@@ -389,3 +401,131 @@ async def complete_task(owner_id: int, task_id: int) -> bool:
         )
         await db.commit()
         return cursor.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# levels — Sistema de Experiencia
+# ---------------------------------------------------------------------------
+
+async def add_xp(guild_id: int, user_id: int, amount: int) -> dict:
+    """
+    Suma XP a un usuario. Si no existe, lo crea.
+    Calcula el nivel automáticamente.
+    La fórmula clásica es: (nivel * 50) ^ 2 o similar. 
+    Usaremos: xp_req = 5 * (nivel ^ 2) + (50 * nivel) + 100 para un escalado suave.
+
+    Args:
+        guild_id: ID del servidor.
+        user_id: ID del usuario.
+        amount: Cantidad de XP a sumar.
+
+    Returns:
+        Dict con: 'level_up' (bool), 'new_level' (int), 'xp' (int)
+    """
+    now_iso = datetime.utcnow().isoformat()
+
+    async with aiosqlite.connect(config.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        
+        # 1. Obtener registro actual
+        async with db.execute(
+            "SELECT xp, level FROM levels WHERE guild_id = ? AND user_id = ?",
+            (guild_id, user_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+        if row:
+            current_xp = row["xp"]
+            current_level = row["level"]
+        else:
+            current_xp = 0
+            current_level = 0
+
+        # 2. Sumar XP
+        new_xp = current_xp + amount
+        
+        # 3. Calcular si subió de nivel
+        new_level = current_level
+        leveled_up = False
+
+        # Calcular XP requerido para el próximo nivel (iteramos por si subió más de 1 de golpe)
+        while True:
+            # XP necesario para pasar DEL new_level AL (new_level + 1)
+            # Fórmula: 5 * (nivel^2) + 50*nivel + 100
+            xp_req = 5 * (new_level ** 2) + 50 * new_level + 100
+            
+            if new_xp >= xp_req:
+                new_xp -= xp_req
+                new_level += 1
+                leveled_up = True
+            else:
+                break
+
+        # 4. Upsert (Guardar)
+        await db.execute(
+            """
+            INSERT INTO levels (guild_id, user_id, xp, level, last_message_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(guild_id, user_id) DO UPDATE SET
+                xp = excluded.xp,
+                level = excluded.level,
+                last_message_at = excluded.last_message_at
+            """,
+            (guild_id, user_id, new_xp, new_level, now_iso),
+        )
+        await db.commit()
+
+        return {
+            "level_up": leveled_up,
+            "new_level": new_level,
+            "xp": new_xp
+        }
+
+
+async def get_user_level(guild_id: int, user_id: int) -> dict:
+    """
+    Obtiene el nivel y XP actual de un usuario.
+    
+    Returns:
+        Dict con 'level', 'xp' y 'xp_required_for_next'.
+    """
+    async with aiosqlite.connect(config.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            "SELECT xp, level FROM levels WHERE guild_id = ? AND user_id = ?",
+            (guild_id, user_id)
+        ) as cursor:
+            row = await cursor.fetchone()
+
+    level = row["level"] if row else 0
+    xp = row["xp"] if row else 0
+    
+    xp_req = 5 * (level ** 2) + 50 * level + 100
+
+    return {
+        "level": level,
+        "xp": xp,
+        "xp_required_for_next": xp_req
+    }
+
+
+async def get_leaderboard(guild_id: int, limit: int = 10) -> list[dict]:
+    """
+    Obtiene el Top N de usuarios con más nivel en un servidor.
+    """
+    async with aiosqlite.connect(config.DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(
+            """
+            SELECT user_id, level, xp 
+            FROM levels 
+            WHERE guild_id = ? 
+            ORDER BY level DESC, xp DESC 
+            LIMIT ?
+            """,
+            (guild_id, limit)
+        ) as cursor:
+            rows = await cursor.fetchall()
+            
+    return [dict(row) for row in rows]
+
