@@ -124,9 +124,13 @@ class Music(commands.Cog, name="Musica"):
 
         if queue.voice_client is None or not queue.voice_client.is_connected():
             try:
-                queue.voice_client = await channel.connect()
+                queue.voice_client = await channel.connect(timeout=10.0, self_deaf=True)
             except discord.ClientException:
                 queue.voice_client = interaction.guild.voice_client
+            except asyncio.TimeoutError:
+                return False
+            except Exception:
+                return False
         elif queue.voice_client.channel != channel:
             await queue.voice_client.move_to(channel)
             
@@ -244,6 +248,7 @@ class Music(commands.Cog, name="Musica"):
         await interaction.response.defer()
         
         queue = self._get_queue(interaction.guild_id)
+        
         joined = await self._join_voice(interaction, queue)
         if not joined:
             await interaction.followup.send(
