@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <a href="https://discord.com/oauth2/authorize?client_id=1531107387342327838&permissions=3599424&integration_type=0&scope=bot+applications.commands">
+  <a href="https://discord.com/oauth2/authorize?client_id=1531107387342327838&permissions=8&integration_type=0&scope=bot+applications.commands">
     <img src="https://img.shields.io/badge/Añadir_a_Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" alt="Invitar a Kutral">
   </a>
 </p>
