@@ -128,6 +128,26 @@ class AIChat(commands.Cog, name="IA Pública"):
             # Mantener system prompt en índice 0, y luego los últimos turnos
             self.history[user_id] = [history[0]] + history[-(MAX_HISTORY_TURNS * 2):]
 
+    def _resolve_member_string(self, guild: discord.Guild, query: str) -> discord.Member | None:
+        """Busca un miembro por mención, ID, nombre o apodo."""
+        query = query.strip()
+        if query.startswith('<@') and query.endswith('>'):
+            query = query.replace('<@!', '').replace('<@', '').replace('>', '')
+        if query.isdigit():
+            m = guild.get_member(int(query))
+            if m: return m
+            
+        query_lower = query.lower()
+        for m in guild.members:
+            if (m.name.lower() == query_lower or 
+                m.display_name.lower() == query_lower or 
+                f"{m.name.lower()}#{m.discriminator}" == query_lower):
+                return m
+        for m in guild.members:
+            if query_lower in m.name.lower() or query_lower in m.display_name.lower():
+                return m
+        return None
+
     async def _ask_groq(self, member: discord.Member, channel: discord.TextChannel, prompt: str) -> str:
         """
         Envía el prompt a Groq incluyendo el historial de conversación.
@@ -141,6 +161,10 @@ class AIChat(commands.Cog, name="IA Pública"):
         is_boss = (user_id == config.OWNER_ID)
         boss_text = "Él es tu dueño y creador, llámale 'jefe' o 'amo'." if is_boss else f"Estás hablando con {member.display_name}."
         dynamic_system = f"Contexto actual: {boss_text}. Tienes herramientas de música. Úsalas de forma autónoma SOLO si el usuario te pide explícitamente reproducir, pausar, saltar o detener música. Si te pide algo distinto (como recordar algo o charlar), NO uses las herramientas, solo responde."
+        
+        if is_boss:
+            dynamic_system += " También tienes herramientas de moderación (banear, expulsar, silenciar) que debes usar si te ordeno disciplinar a alguien."
+            
         messages.append({"role": "system", "content": dynamic_system})
         messages.append({"role": "user", "content": prompt})
 
@@ -181,6 +205,56 @@ class AIChat(commands.Cog, name="IA Pública"):
                 }
             }
         ]
+        
+        if is_boss:
+            tools.extend([
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "banear_usuario",
+                        "description": "Banea a un usuario del servidor.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "Nombre o mención del usuario a banear."},
+                                "razon": {"type": "string", "description": "Razón del baneo."}
+                            },
+                            "required": ["query", "razon"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "expulsar_usuario",
+                        "description": "Expulsa a un usuario del servidor.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "Nombre o mención del usuario a expulsar."},
+                                "razon": {"type": "string", "description": "Razón de la expulsión."}
+                            },
+                            "required": ["query", "razon"]
+                        }
+                    }
+                },
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "silenciar_usuario",
+                        "description": "Silencia (timeout) a un usuario en el servidor.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "query": {"type": "string", "description": "Nombre o mención del usuario a silenciar."},
+                                "minutos": {"type": "integer", "description": "Minutos de duración del silencio."},
+                                "razon": {"type": "string", "description": "Razón del silencio."}
+                            },
+                            "required": ["query", "minutos", "razon"]
+                        }
+                    }
+                }
+            ])
 
         chat_completion = await self.client.chat.completions.create(
             messages=messages,
@@ -258,6 +332,45 @@ class AIChat(commands.Cog, name="IA Pública"):
                             await music_cog.update_player_message(member.guild.id)
                             result_str = "Éxito: Música detenida."
                             
+                        elif func_name in ["banear_usuario", "expulsar_usuario", "silenciar_usuario"]:
+                            if not is_boss:
+                                result_str = "Error: Permiso denegado. No eres el dueño del bot."
+                            else:
+                                args = json.loads(tool_call.function.arguments)
+                                query_user = args.get("query", "")
+                                razon = args.get("razon", "Orden directa de moderación por IA")
+                                target = self._resolve_member_string(member.guild, query_user)
+                                
+                                if not target:
+                                    result_str = f"Error: No se encontró al usuario '{query_user}'."
+                                else:
+                                    mod_cog = self.bot.get_cog("Moderación")
+                                    if not mod_cog:
+                                        result_str = "Error: Módulo de moderación no cargado."
+                                    else:
+                                        if target.id == self.bot.user.id:
+                                            result_str = "Error: No puedo moderarme a mí mismo."
+                                        elif target.id == member.guild.owner_id:
+                                            result_str = "Error: No puedo moderar al dueño del servidor."
+                                        elif target.top_role >= member.guild.me.top_role:
+                                            result_str = "Error: El rol del usuario es igual o superior al mío, necesito estar más arriba."
+                                        else:
+                                            from datetime import timedelta
+                                            if func_name == "banear_usuario":
+                                                await mod_cog._notify_user(target, "baneado", member.guild.name, razon)
+                                                await target.ban(reason=razon, delete_message_days=0)
+                                                result_str = f"Éxito: {target.display_name} fue baneado."
+                                            elif func_name == "expulsar_usuario":
+                                                await mod_cog._notify_user(target, "expulsado", member.guild.name, razon)
+                                                await target.kick(reason=razon)
+                                                result_str = f"Éxito: {target.display_name} fue expulsado."
+                                            elif func_name == "silenciar_usuario":
+                                                min = args.get("minutos", 10)
+                                                if min <= 0: min = 10
+                                                await mod_cog._notify_user(target, "silenciado", member.guild.name, razon, f"Duración: {min} min.")
+                                                await target.timeout(timedelta(minutes=min), reason=razon)
+                                                result_str = f"Éxito: {target.display_name} silenciado {min} min."
+                                                
                     except Exception as e:
                         result_str = f"Error interno: {e}"
                 
