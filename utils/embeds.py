@@ -53,28 +53,28 @@ def _base_embed(title: str, description: str, color: int) -> discord.Embed:
 # ---------------------------------------------------------------------------
 
 def success_embed(title: str, description: str = "") -> discord.Embed:
-    """Embed verde para confirmar una operación exitosa."""
-    return _base_embed(f"✅  {title}", description, config.COLOR_SUCCESS)
+    """Embed verde para confirmar una operacion exitosa."""
+    return _base_embed(title, description, config.COLOR_SUCCESS)
 
 
 def error_embed(title: str, description: str = "") -> discord.Embed:
     """Embed rojo para reportar errores o acciones rechazadas."""
-    return _base_embed(f"❌  {title}", description, config.COLOR_ERROR)
+    return _base_embed(title, description, config.COLOR_ERROR)
 
 
 def warning_embed(title: str, description: str = "") -> discord.Embed:
-    """Embed ámbar para advertencias no críticas."""
-    return _base_embed(f"⚠️  {title}", description, config.COLOR_WARNING)
+    """Embed ambar para advertencias no criticas."""
+    return _base_embed(title, description, config.COLOR_WARNING)
 
 
 def info_embed(title: str, description: str = "") -> discord.Embed:
     """Embed azul para mensajes informativos neutrales."""
-    return _base_embed(f"ℹ️  {title}", description, config.COLOR_INFO)
+    return _base_embed(title, description, config.COLOR_INFO)
 
 
 def music_embed(title: str, description: str = "") -> discord.Embed:
-    """Embed púrpura exclusivo para el módulo de música."""
-    return _base_embed(f"🎵  {title}", description, config.COLOR_MUSIC)
+    """Embed purpura exclusivo para el modulo de musica."""
+    return _base_embed(title, description, config.COLOR_MUSIC)
 
 
 def primary_embed(title: str, description: str = "") -> discord.Embed:
