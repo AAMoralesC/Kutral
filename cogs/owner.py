@@ -230,6 +230,15 @@ class Owner(commands.Cog, name="Asistente Personal"):
                 ephemeral=True,
             )
 
+    @app_commands.command(name="ping", description="Verifica la latencia del bot")
+    async def ping(self, interaction: discord.Interaction) -> None:
+        """Comando publico para revisar la latencia."""
+        latency = round(self.bot.latency * 1000)
+        await interaction.response.send_message(
+            embed=success_embed("Pong! 🏓", f"Latencia de conexion: **{latency}ms**"),
+            ephemeral=True,
+        )
+
 # ---------------------------------------------------------------------------
 # Setup
 # ---------------------------------------------------------------------------

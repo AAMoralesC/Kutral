@@ -42,7 +42,7 @@ def _base_embed(title: str, description: str, color: int) -> discord.Embed:
         title=title,
         description=description,
         color=color,
-        timestamp=datetime.utcnow(),
+        timestamp=discord.utils.utcnow(),
     )
     embed.set_footer(text="Kutral Bot")
     return embed
