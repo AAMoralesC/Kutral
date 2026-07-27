@@ -21,7 +21,7 @@
 
 - 🧠 **Autonomía Total (Tool Calling):** La IA (potenciada por Llama 3) no solo habla, **¡actúa!**. Entiende el contexto y puede usar herramientas internas por sí sola. Si le pides *"pon algo de Jonas Sanche"*, ella buscará la canción, se conectará al canal de voz y la reproducirá mientras te responde.
 - 🛡️ **Guardaespaldas IA Personal:** Kutral reconoce quién es su dueño. Si tú se lo ordenas, la IA tiene autorización para usar herramientas de moderación y banear, expulsar o silenciar usuarios rebeldes. Si alguien más se lo pide, la IA se rehusará estoicamente.
-- 🇨🇱 **Personalidad Única:** Programado para ser de barrio. Kutral te saluda con modismos chilenos ("wena mi rey", "wena compita"), deduce el género a través de los nombres para personalizar el trato, da épicas bienvenidas a servidores nuevos y puede buscar y etiquetar/mencionar a los usuarios si se lo pides.
+- 🇨🇱 **Personalidad Única:** Kutral cuenta con una identidad marcadamente chilena. Es capaz de deducir el género a través de los nombres para personalizar su trato, da bienvenidas épicas a servidores nuevos y puede buscar y etiquetar a los usuarios automáticamente.
 - 🎵 **Sistema de Música Avanzado:** Audio sin interrupciones desde YouTube (Soporte E2EE/DAVE de Discord) con resolutor ultrarrápido vía `ytmusicapi` para ignorar videos bloqueados.
 - 🏆 **Sistema de Niveles (Experiencia):** Recompensa a tus usuarios por interactuar. Incluye comando `/rank` con barra de progreso visual, `/leaderboard` competitivo y enfriamiento anti-spam.
 - 📝 **Asistente Personal (Owner Only):** Comandos privados de notas, tareas y recordatorios que solo el dueño del bot puede utilizar.
