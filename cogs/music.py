@@ -212,13 +212,17 @@ class Music(commands.Cog, name="Musica"):
             
         view = MusicControlView(self, guild_id)
         
+        # Eliminar el panel viejo para que el nuevo quede al fondo del chat
+        if queue.player_message:
+            try:
+                await queue.player_message.delete()
+            except Exception:
+                pass
+                
         try:
-            if queue.player_message:
-                await queue.player_message.edit(embed=embed, view=view)
-            else:
-                queue.player_message = await queue.text_channel.send(embed=embed, view=view)
-        except Exception:
             queue.player_message = await queue.text_channel.send(embed=embed, view=view)
+        except Exception:
+            pass
 
     async def _join_voice(self, interaction: discord.Interaction, queue: MusicQueue) -> bool:
         if not interaction.user.voice or not interaction.user.voice.channel:
